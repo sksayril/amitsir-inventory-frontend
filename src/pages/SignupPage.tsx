@@ -40,7 +40,7 @@ export const SignupPage: React.FC = () => {
                 <ShoppingCart className="w-7 h-7" />
               </div>
               <div>
-                <h3 className="font-semibold">Purchase & Sales</h3>
+                <h3 className="font-semibold">Purchase Transactions</h3>
                 <p className="text-emerald-100 text-sm">Transactions</p>
               </div>
             </div>

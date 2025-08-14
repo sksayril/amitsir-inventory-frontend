@@ -3,7 +3,7 @@ import {
   Building2, 
   Package, 
   ShoppingCart, 
-  TrendingUp, 
+  TrendingUp,
   Receipt, 
   Users, 
   UserCheck, 
@@ -17,7 +17,6 @@ interface DashboardStats {
   totalCompanies: number;
   totalItems: number;
   totalPurchase: number;
-  totalSales: number;
   totalReceipts: number;
   totalCreditParties: number;
   totalBrokers: number;
@@ -57,15 +56,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ stats }) =
       change: '+5',
       changeType: 'positive' as const,
     },
-    {
-      title: 'Sales Transactions',
-      value: stats.totalSales,
-      icon: TrendingUp,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-      change: '+18',
-      changeType: 'positive' as const,
-    },
+
     {
       title: 'Receipt Transactions',
       value: stats.totalReceipts,
@@ -112,13 +103,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ stats }) =
       icon: ShoppingCart,
       color: 'text-orange-600',
     },
-    {
-      type: 'sales',
-      message: 'Sales invoice #SI-156 generated',
-      time: '4 hours ago',
-      icon: TrendingUp,
-      color: 'text-green-600',
-    },
+
     {
       type: 'item',
       message: 'Item "Wireless Headphones" stock updated',
@@ -174,13 +159,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ stats }) =
                   <div className="flex items-center mt-2">
                     {card.changeType === 'positive' ? (
                       <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
-                    ) : card.changeType === 'negative' ? (
-                      <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
                     ) : null}
                     <span className={`text-sm ${
-                      card.changeType === 'positive' ? 'text-green-600' : 
-                      card.changeType === 'negative' ? 'text-red-600' : 
-                      'text-gray-600'
+                      card.changeType === 'positive' ? 'text-green-600' : 'text-gray-600'
                     }`}>
                       {card.change} this month
                     </span>
@@ -241,13 +222,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ stats }) =
             </svg>
           </div>
 
-          <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-2">
-              <TrendingUp className="w-8 h-8 text-green-600" />
-            </div>
-            <p className="text-sm font-medium text-gray-900">Sales</p>
-            <p className="text-xs text-gray-500">{stats.totalSales} transactions</p>
-          </div>
+
         </div>
       </div>
 

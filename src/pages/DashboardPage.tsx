@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Company, Item, PurchaseTransaction, SalesTransaction, ReceiptTransaction, CreditParty, Broker, CHA } from '../types';
+import { Company, Item, PurchaseTransaction, ReceiptTransaction, CreditParty, DebitParty, Broker, CHA } from '../types';
 import { Header } from '../components/layout/Header';
 import { DashboardOverview } from '../components/dashboard/DashboardOverview';
 import { Sidebar } from '../components/layout/Sidebar';
 import { CompanyMaster } from '../components/masters/CompanyMaster';
 import { ItemMaster } from '../components/masters/ItemMaster';
 import { PurchaseMaster } from '../components/transactions/PurchaseMaster';
-import { SalesMaster } from '../components/transactions/SalesMaster';
 import { ReceiptMaster } from '../components/transactions/ReceiptMaster';
 import { CreditPartyMaster } from '../components/masters/CreditPartyMaster';
+import { DebitPartyMaster } from '../components/masters/DebitPartyMaster';
 import { BrokerMaster } from '../components/masters/BrokerMaster';
 import { CHAMaster } from '../components/masters/CHAMaster';
 
@@ -17,9 +17,9 @@ export type ActiveView =
   | 'company'
   | 'item'
   | 'purchase'
-  | 'sales'
   | 'receipt'
   | 'credit-party'
+  | 'debit-party'
   | 'broker'
   | 'cha';
 
@@ -32,7 +32,6 @@ export const DashboardPage: React.FC = () => {
     totalCompanies: 0,
     totalItems: 0,
     totalPurchase: 0,
-    totalSales: 0,
     totalReceipts: 0,
     totalCreditParties: 0,
     totalBrokers: 0,
@@ -45,7 +44,6 @@ export const DashboardPage: React.FC = () => {
       totalCompanies: 12,
       totalItems: 156,
       totalPurchase: 89,
-      totalSales: 234,
       totalReceipts: 156,
       totalCreditParties: 45,
       totalBrokers: 8,
@@ -63,12 +61,13 @@ export const DashboardPage: React.FC = () => {
         return <ItemMaster />;
       case 'purchase':
         return <PurchaseMaster />;
-      case 'sales':
-        return <SalesMaster />;
+
       case 'receipt':
         return <ReceiptMaster />;
       case 'credit-party':
         return <CreditPartyMaster />;
+      case 'debit-party':
+        return <DebitPartyMaster />;
       case 'broker':
         return <BrokerMaster />;
       case 'cha':

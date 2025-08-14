@@ -40,7 +40,7 @@ export const LoginPage: React.FC = () => {
                 <ShoppingCart className="w-8 h-8" />
               </div>
               <div>
-                <h3 className="font-semibold">Purchase → Sales</h3>
+                <h3 className="font-semibold">Purchase Transactions</h3>
                 <p className="text-blue-100 text-sm">Transaction flow</p>
               </div>
             </div>

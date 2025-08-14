@@ -2,7 +2,7 @@ import axios from 'axios';
 import { authStorage } from '../utils/storage';
 
 // Base API configuration
-const API_BASE_URL = 'http://localhost:3100';
+const API_BASE_URL = 'https://t0nzmsdd-3100.inc1.devtunnels.ms';
 
 // Create axios instance with base configuration
 const api = axios.create({

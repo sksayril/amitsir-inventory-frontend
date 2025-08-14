@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Item } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Plus, Search, Edit, Trash2, Package, TrendingUp, AlertTriangle, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package,  AlertTriangle, X, Loader2 } from 'lucide-react';
+import api from '../../services/api';
 
 export const ItemMaster: React.FC = () => {
   const [items, setItems] = useState<Item[]>([]);
@@ -11,58 +12,86 @@ export const ItemMaster: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedItemDetails, setSelectedItemDetails] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
-  // Mock data
+  // Fetch items from API
+  const fetchItems = async (page = 1, search = '', isActive?: boolean) => {
+    try {
+      setIsLoading(true);
+      setApiError(null);
+      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString(),
+        ...(search && { search }),
+        ...(isActive !== undefined && { isActive: isActive.toString() })
+      });
+      
+      const response = await api.get(`/master-data/items?${params}`);
+      
+      if (response.data.success) {
+        const { data, pagination: paginationData } = response.data;
+        
+        // Transform API response to match Item type
+        const transformedItems: Item[] = data.map((item: any) => ({
+          id: item.id || item._id,
+          name: item.itemName || item.name,
+          category: item.category || 'General',
+          hsnCode: item.itemHsn || item.hsnCode,
+          unit: item.itemUnits || item.unit,
+          currentStock: item.itemQty || item.currentStock || 0,
+          minStock: item.minStock || 0,
+          maxStock: item.maxStock || 0,
+          purchasePrice: item.itemRate?.inr || item.purchasePrice || 0,
+          sellingPrice: item.itemRate?.usd || item.sellingPrice || 0,
+          description: item.remarks || item.description || '',
+          status: item.isActive ? 'active' : 'inactive',
+          createdAt: item.createdAt || new Date().toISOString(),
+        }));
+        
+        setItems(transformedItems);
+        setPagination(prev => ({
+          ...prev,
+          page,
+          total: paginationData?.total || 0,
+          totalPages: paginationData?.totalPages || 0
+        }));
+      } else {
+        setApiError(response.data.message || 'Failed to fetch items');
+      }
+    } catch (error: any) {
+      console.error('Error fetching items:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch items';
+      setApiError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    const mockItems: Item[] = [
-      {
-        id: '1',
-        name: 'Premium Cotton Fabric',
-        category: 'Textiles',
-        hsnCode: '5208.52',
-        unit: 'mtr',
-        currentStock: 1500,
-        minStock: 200,
-        maxStock: 2000,
-        purchasePrice: 85.50,
-        sellingPrice: 120.00,
-        description: 'High-quality cotton fabric for apparel manufacturing',
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        name: 'Steel Pipes 6 inch',
-        category: 'Metals',
-        hsnCode: '7306.30',
-        unit: 'mtr',
-        currentStock: 500,
-        minStock: 100,
-        maxStock: 800,
-        purchasePrice: 450.00,
-        sellingPrice: 580.00,
-        description: 'Galvanized steel pipes for construction',
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: '3',
-        name: 'Electronic Components Kit',
-        category: 'Electronics',
-        hsnCode: '8536.90',
-        unit: 'pcs',
-        currentStock: 25,
-        minStock: 50,
-        maxStock: 200,
-        purchasePrice: 1250.00,
-        sellingPrice: 1800.00,
-        description: 'Complete kit for electronic projects',
-        status: 'inactive',
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    setItems(mockItems);
+    fetchItems();
   }, []);
+
+  // Fetch items when search or filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      fetchItems(1, searchTerm, selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, selectedStatus]);
 
   const filteredItems = items.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -73,32 +102,130 @@ export const ItemMaster: React.FC = () => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleAddItem = (itemData: Omit<Item, 'id' | 'createdAt'>) => {
+  const handleAddItem = async (itemData: {
+    itemName: string;
+    itemHsn: string;
+    itemQty: number;
+    itemUnits: string;
+    itemRate: { inr: number; usd: number };
+    remarks: string;
+    customField1: string;
+  }) => {
+    try {
+      setIsSubmitting(true);
+      setApiError(null);
+      
+      // Prepare the API request body
+      const apiRequestBody = {
+        itemName: itemData.itemName,
+        itemHsn: itemData.itemHsn,
+        itemQty: itemData.itemQty,
+        itemUnits: itemData.itemUnits,
+        itemRate: itemData.itemRate,
+        remarks: itemData.remarks,
+        customField1: itemData.customField1
+      };
+
+      // Call the API
+      const response = await api.post('/master-data/items', apiRequestBody);
+      
+      if (response.data.success) {
+        // Create a new item for local state (you can also refresh from API)
     const newItem: Item = {
-      ...itemData,
-      id: Date.now().toString(),
+          id: response.data.data?.id || Date.now().toString(),
+          name: itemData.itemName,
+          category: 'General', // Default category since it's not in the new form
+          hsnCode: itemData.itemHsn,
+          unit: itemData.itemUnits,
+          currentStock: itemData.itemQty,
+          minStock: 0, // Default value since it's not in the new form
+          maxStock: itemData.itemQty * 2, // Default value since it's not in the new form
+          purchasePrice: itemData.itemRate.inr,
+          sellingPrice: itemData.itemRate.usd,
+          description: itemData.remarks,
+          status: 'active', // Default status since it's not in the new form
       createdAt: new Date().toISOString(),
     };
-    setItems(prev => [...prev, newItem]);
+        
     setShowForm(false);
+        
+        // Refresh the items list
+        await fetchItems(pagination.page, searchTerm, selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined);
+        
+        // Success - item added to list
+      } else {
+        setApiError(response.data.message || 'Failed to add item');
+      }
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to add item';
+      setApiError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEditItem = (itemData: Omit<Item, 'id' | 'createdAt'>) => {
+  const handleEditItem = async (itemData: {
+    itemName: string;
+    itemHsn: string;
+    itemQty: number;
+    itemUnits: string;
+    itemRate: { inr: number; usd: number };
+    remarks: string;
+    customField1: string;
+  }) => {
     if (editingItem) {
-      setItems(prev => prev.map(i => 
-        i.id === editingItem.id 
-          ? { ...itemData, id: i.id, createdAt: i.createdAt }
-          : i
-      ));
+      try {
+        setIsSubmitting(true);
+        setApiError(null);
+        
+        // Prepare the API request body
+        const apiRequestBody = {
+          itemName: itemData.itemName,
+          itemHsn: itemData.itemHsn,
+          itemQty: itemData.itemQty,
+          itemUnits: itemData.itemUnits,
+          itemRate: itemData.itemRate,
+          remarks: itemData.remarks,
+          customField1: itemData.customField1
+        };
+
+        // Call the API to update the item
+        const response = await api.put(`/master-data/items/${editingItem.id}`, apiRequestBody);
+        
+        if (response.data.success) {
+          const updatedItem: Item = {
+            ...editingItem,
+            name: itemData.itemName,
+            hsnCode: itemData.itemHsn,
+            unit: itemData.itemUnits,
+            currentStock: itemData.itemQty,
+            purchasePrice: itemData.itemRate.inr,
+            sellingPrice: itemData.itemRate.usd,
+            description: itemData.remarks,
+          };
       setEditingItem(undefined);
       setShowForm(false);
+          
+          // Refresh the items list
+          await fetchItems(pagination.page, searchTerm, selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined);
+          
+          // Success - item updated in list
+        } else {
+          setApiError(response.data.message || 'Failed to update item');
+        }
+      } catch (error: any) {
+        console.error('Error updating item:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update item';
+        setApiError(errorMessage);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const handleDeleteItem = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this item?')) {
       setItems(prev => prev.filter(i => i.id !== id));
-    }
   };
 
   const startEdit = (item: Item) => {
@@ -109,6 +236,28 @@ export const ItemMaster: React.FC = () => {
   const handleCancel = () => {
     setShowForm(false);
     setEditingItem(undefined);
+  };
+
+  const handleItemClick = async (itemId: string) => {
+    try {
+      setIsLoadingDetails(true);
+      setApiError(null);
+      
+      const response = await api.get(`/master-data/items/${itemId}`);
+      
+      if (response.data.success) {
+        setSelectedItemDetails(response.data.data);
+        setShowDetailsModal(true);
+      } else {
+        setApiError(response.data.message || 'Failed to fetch item details');
+      }
+    } catch (error: any) {
+      console.error('Error fetching item details:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch item details';
+      setApiError(errorMessage);
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   const categories = ['All', ...Array.from(new Set(items.map(i => i.category)))];
@@ -127,6 +276,22 @@ export const ItemMaster: React.FC = () => {
         </Button>
       </div>
 
+      {/* API Error Display */}
+      {apiError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
+          <AlertTriangle className="w-5 h-5 text-red-500" />
+          <div className="text-red-700">
+            <p className="font-medium">API Error</p>
+            <p className="text-sm">{apiError}</p>
+          </div>
+          <button
+            onClick={() => setApiError(null)}
+            className="ml-auto text-red-400 hover:text-red-600"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {/* Search and Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -163,9 +328,15 @@ export const ItemMaster: React.FC = () => {
           </select>
         </div>
       </div>
-
       {/* Items Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+         {isLoading ? (
+           <div className="flex items-center justify-center py-12">
+             <Loader2 className="w-8 h-8 animate-spin text-blue-500 mr-3" />
+             <span className="text-gray-600">Loading items...</span>
+           </div>
+         ) : (
+           <>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -194,7 +365,11 @@ export const ItemMaster: React.FC = () => {
               {filteredItems.map((item) => {
                 const isLowStock = item.currentStock <= item.minStock;
                 return (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                                               <tr 
+                          key={item.id} 
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => handleItemClick(item.id)}
+                        >
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
                         <div className="bg-purple-100 p-2 rounded-lg">
@@ -242,7 +417,7 @@ export const ItemMaster: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => startEdit(item)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
@@ -270,6 +445,39 @@ export const ItemMaster: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No items found</h3>
             <p className="text-gray-500">Start by adding your first item to the inventory.</p>
           </div>
+             )}
+
+             {/* Pagination */}
+             {pagination.totalPages > 1 && (
+               <div className="bg-white px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                 <div className="text-sm text-gray-700">
+                   Showing page {pagination.page} of {pagination.totalPages} 
+                   ({pagination.total} total items)
+                 </div>
+                 <div className="flex items-center space-x-2">
+                   <Button
+                     variant="secondary"
+                     onClick={() => fetchItems(pagination.page - 1, searchTerm, selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined)}
+                     disabled={pagination.page <= 1}
+                     className="px-3 py-2"
+                   >
+                     Previous
+                   </Button>
+                   <span className="px-3 py-2 text-sm text-gray-700">
+                     {pagination.page}
+                   </span>
+                   <Button
+                     variant="secondary"
+                     onClick={() => fetchItems(pagination.page + 1, searchTerm, selectedStatus === 'active' ? true : selectedStatus === 'inactive' ? false : undefined)}
+                     disabled={pagination.page >= pagination.totalPages}
+                     className="px-3 py-2"
+                   >
+                     Next
+                   </Button>
+                 </div>
+               </div>
+             )}
+           </>
         )}
       </div>
 
@@ -279,8 +487,182 @@ export const ItemMaster: React.FC = () => {
           item={editingItem}
           onSubmit={editingItem ? handleEditItem : handleAddItem}
           onCancel={handleCancel}
-        />
-      )}
+           isSubmitting={isSubmitting}
+         />
+       )}
+
+       {/* Item Details Modal */}
+       {showDetailsModal && (
+         <ItemDetailsModal
+           itemDetails={selectedItemDetails}
+           onClose={() => {
+             setShowDetailsModal(false);
+             setSelectedItemDetails(null);
+           }}
+           isLoading={isLoadingDetails}
+         />
+       )}
+     </div>
+   );
+ };
+
+// Item Details Modal Component
+interface ItemDetailsModalProps {
+  itemDetails: any;
+  onClose: () => void;
+  isLoading: boolean;
+}
+
+const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ itemDetails, onClose, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mr-3" />
+            <span className="text-gray-600">Loading item details...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!itemDetails) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <h3 className="text-xl font-bold text-gray-900">Item Details</h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                Basic Information
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Item Name</label>
+                  <p className="text-sm text-gray-900">{itemDetails.itemName || itemDetails.name || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-500">HSN Code</label>
+                  <p className="text-sm text-gray-900">{itemDetails.itemHsn || itemDetails.hsnCode || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Category</label>
+                  <p className="text-sm text-gray-900">{itemDetails.category || 'N/A'}</p>
+                </div>
+                
+                                 <div>
+                   <label className="text-sm font-medium text-gray-500">Status</label>
+                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                     itemDetails.isActive || itemDetails.status === 'active'
+                       ? 'bg-green-100 text-green-800' 
+                       : 'bg-red-100 text-red-800'
+                   }`}>
+                     {itemDetails.isActive || itemDetails.status === 'active' ? 'Active' : 'Inactive'}
+                   </span>
+                 </div>
+              </div>
+            </div>
+
+            {/* Stock & Pricing */}
+            <div className="space-y-4">
+              <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                Stock & Pricing
+              </h4>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Quantity</label>
+                  <p className="text-sm text-gray-900">{itemDetails.itemQty || itemDetails.currentStock || 0}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Units</label>
+                  <p className="text-sm text-gray-900">{itemDetails.itemUnits || itemDetails.unit || 'N/A'}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Rate (INR)</label>
+                  <p className="text-sm text-gray-900">₹{itemDetails.itemRate?.inr || itemDetails.purchasePrice || 0}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Rate (USD)</label>
+                  <p className="text-sm text-gray-900">${itemDetails.itemRate?.usd || itemDetails.sellingPrice || 0}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Details */}
+          <div className="mt-6 space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+              Additional Details
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-sm font-medium text-gray-500">Remarks</label>
+                <p className="text-sm text-gray-900 mt-1">
+                  {itemDetails.remarks || itemDetails.description || 'No remarks available'}
+                </p>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-500">Custom Field 1</label>
+                <p className="text-sm text-gray-900 mt-1">
+                  {itemDetails.customField1 || 'N/A'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* System Information */}
+          <div className="mt-6 space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
+              System Information
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div>
+                 <label className="text-sm font-medium text-gray-500">Item ID</label>
+                 <p className="text-sm text-gray-900 font-mono">{itemDetails.id || itemDetails._id || 'N/A'}</p>
+               </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-500">Created At</label>
+                <p className="text-sm text-gray-900">
+                  {itemDetails.createdAt ? new Date(itemDetails.createdAt).toLocaleString() : 'N/A'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Close Button */}
+          <div className="mt-8 flex justify-end">
+            <Button onClick={onClose} variant="secondary">
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -288,39 +670,46 @@ export const ItemMaster: React.FC = () => {
 // Item Form Component
 interface ItemFormProps {
   item?: Item;
-  onSubmit: (item: Omit<Item, 'id' | 'createdAt'>) => void;
+  onSubmit: (item: {
+    itemName: string;
+    itemHsn: string;
+    itemQty: number;
+    itemUnits: string;
+    itemRate: { inr: number; usd: number };
+    remarks: string;
+    customField1: string;
+  }) => Promise<void>;
   onCancel: () => void;
+  isSubmitting: boolean;
 }
 
-const ItemForm: React.FC<ItemFormProps> = ({ item, onSubmit, onCancel }) => {
+const ItemForm: React.FC<ItemFormProps> = ({ item, onSubmit, onCancel, isSubmitting }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    hsnCode: '',
-    unit: '',
-    currentStock: 0,
-    minStock: 0,
-    maxStock: 0,
-    purchasePrice: 0,
-    sellingPrice: 0,
-    description: '',
-    status: 'active' as 'active' | 'inactive',
+    itemName: '',
+    itemHsn: '',
+    itemQty: 0,
+    itemUnits: '',
+    itemRate: {
+      inr: 0,
+      usd: 0
+    },
+    remarks: '',
+    customField1: '',
   });
 
   React.useEffect(() => {
     if (item) {
       setFormData({
-        name: item.name,
-        category: item.category,
-        hsnCode: item.hsnCode,
-        unit: item.unit,
-        currentStock: item.currentStock,
-        minStock: item.minStock,
-        maxStock: item.maxStock,
-        purchasePrice: item.purchasePrice,
-        sellingPrice: item.sellingPrice,
-        description: item.description,
-        status: item.status,
+        itemName: item.name,
+        itemHsn: item.hsnCode,
+        itemQty: item.currentStock,
+        itemUnits: item.unit,
+        itemRate: {
+          inr: item.purchasePrice,
+          usd: item.sellingPrice
+        },
+        remarks: item.description,
+        customField1: '', // This field doesn't exist in the old Item type
       });
     }
   }, [item]);
@@ -349,45 +738,37 @@ const ItemForm: React.FC<ItemFormProps> = ({ item, onSubmit, onCancel }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Item Name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              value={formData.itemName}
+              onChange={(e) => setFormData(prev => ({ ...prev, itemName: e.target.value }))}
               placeholder="Enter item name"
               required
             />
             <Input
               label="Item HSN Code"
-              value={formData.hsnCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, hsnCode: e.target.value }))}
-              placeholder="Enter HSN code (e.g., 5208.52)"
+              value={formData.itemHsn}
+              onChange={(e) => setFormData(prev => ({ ...prev, itemHsn: e.target.value }))}
+              placeholder="Enter HSN code (e.g., 5208)"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Item Quantity (Current Stock)"
+              label="Item Quantity"
               type="number"
-              value={formData.currentStock}
-              onChange={(e) => setFormData(prev => ({ ...prev, currentStock: parseInt(e.target.value) || 0 }))}
+              value={formData.itemQty}
+              onChange={(e) => setFormData(prev => ({ ...prev, itemQty: parseInt(e.target.value) || 0 }))}
               placeholder="0"
               min="0"
               required
             />
             <Input
               label="Item Units"
-              value={formData.unit}
-              onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-              placeholder="mtr, pcs, kg, etc."
+              value={formData.itemUnits}
+              onChange={(e) => setFormData(prev => ({ ...prev, itemUnits: e.target.value }))}
+              placeholder="sqm, mtr, pcs, kg, etc."
               required
             />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Unit Conversion
-              </label>
-              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                mtr to sqm (for area-based items)
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -395,8 +776,11 @@ const ItemForm: React.FC<ItemFormProps> = ({ item, onSubmit, onCancel }) => {
               label="Item Rate (INR)"
               type="number"
               step="0.01"
-              value={formData.purchasePrice}
-              onChange={(e) => setFormData(prev => ({ ...prev, purchasePrice: parseFloat(e.target.value) || 0 }))}
+              value={formData.itemRate.inr}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                itemRate: { ...prev.itemRate, inr: parseFloat(e.target.value) || 0 }
+              }))}
               placeholder="0.00"
               min="0"
               required
@@ -405,41 +789,22 @@ const ItemForm: React.FC<ItemFormProps> = ({ item, onSubmit, onCancel }) => {
               label="Item Rate (USD)"
               type="number"
               step="0.01"
-              value={formData.sellingPrice}
-              onChange={(e) => setFormData(prev => ({ ...prev, sellingPrice: parseFloat(e.target.value) || 0 }))}
+              value={formData.itemRate.usd}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                itemRate: { ...prev.itemRate, usd: parseFloat(e.target.value) || 0 }
+              }))}
               placeholder="0.00"
               min="0"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label="Minimum Stock"
-              type="number"
-              value={formData.minStock}
-              onChange={(e) => setFormData(prev => ({ ...prev, minStock: parseInt(e.target.value) || 0 }))}
-              placeholder="0"
-              min="0"
-              required
-            />
-            <Input
-              label="Maximum Stock"
-              type="number"
-              value={formData.maxStock}
-              onChange={(e) => setFormData(prev => ({ ...prev, maxStock: parseInt(e.target.value) || 0 }))}
-              placeholder="0"
-              min="0"
-              required
-            />
-          </div>
-
-          <Input
-            label="Category"
-            value={formData.category}
-            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-            placeholder="Enter category (e.g., Textiles, Metals, Electronics)"
-            required
+            label="Custom Field 1"
+            value={formData.customField1}
+            onChange={(e) => setFormData(prev => ({ ...prev, customField1: e.target.value }))}
+            placeholder="Enter custom value"
           />
 
           <div>
@@ -447,33 +812,26 @@ const ItemForm: React.FC<ItemFormProps> = ({ item, onSubmit, onCancel }) => {
               Remarks
             </label>
             <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              value={formData.remarks}
+              onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
               placeholder="Enter additional notes, comments, or description"
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-3 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-400"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'active' | 'inactive' }))}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
           <div className="flex space-x-3 pt-4">
-            <Button type="submit" className="flex-1">
-              {item ? 'Update Item' : 'Add Item'}
+            <Button type="submit" className="flex-1" disabled={isSubmitting} isLoading={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  {item ? 'Updating...' : 'Adding...'}
+                </>
+              ) : (
+                item ? 'Update Item' : 'Add Item'
+              )}
             </Button>
-            <Button type="button" variant="secondary" onClick={onCancel}>
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={isSubmitting}>
               Cancel
             </Button>
           </div>

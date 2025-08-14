@@ -10,7 +10,8 @@ import {
   UserCheck, 
   FileText,
   BarChart3,
-  Home
+  Home,
+  UserX
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -49,13 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeView, onViewChan
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
     },
-    {
-      id: 'sales' as ActiveView,
-      label: 'Sales Transactions',
-      icon: TrendingUp,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
-    },
+
     {
       id: 'receipt' as ActiveView,
       label: 'Receipt Transactions',
@@ -71,9 +66,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeView, onViewChan
       bgColor: 'bg-pink-50',
     },
     {
+      id: 'debit-party' as ActiveView,
+      label: 'Debit Party Master',
+      icon: UserCheck,
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-50',
+    },
+    {
       id: 'broker' as ActiveView,
       label: 'Broker Master',
-      icon: UserCheck,
+      icon: UserX,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
     },
@@ -94,8 +96,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeView, onViewChan
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Business Flow</h2>
           <div className="text-xs text-gray-500 space-y-1">
-            <p>Company → Item → Purchase → Sales</p>
-            <p>Receipt → Credit Party → Broker → CHA</p>
+            <p>Company → Item → Purchase</p>
+            <p>Receipt → Credit Party → Debit Party → Broker → CHA</p>
           </div>
         </div>
 

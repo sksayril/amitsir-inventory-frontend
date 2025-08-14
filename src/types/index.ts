@@ -73,31 +73,7 @@ export interface PurchaseItem {
   gstAmount: number;
 }
 
-export interface SalesTransaction {
-  id: string;
-  salesNumber: string;
-  date: string;
-  customerId: string;
-  customerName: string;
-  items: SalesItem[];
-  totalAmount: number;
-  gstAmount: number;
-  grandTotal: number;
-  paymentStatus: 'pending' | 'partial' | 'completed';
-  status: 'draft' | 'confirmed' | 'cancelled';
-  notes: string;
-  createdAt: string;
-}
 
-export interface SalesItem {
-  itemId: string;
-  itemName: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  gstRate: number;
-  gstAmount: number;
-}
 
 export interface ReceiptTransaction {
   id: string;
@@ -123,6 +99,28 @@ export interface CreditParty {
   panNumber: string;
   creditLimit: number;
   currentBalance: number;
+  status: 'active' | 'inactive';
+  createdAt: string;
+}
+
+export interface DebitParty {
+  id: string;
+  partyName: string;
+  partyAddress1: string;
+  partyAddress2?: string;
+  partyAddress3?: string;
+  pinCode: string;
+  gstNo: string;
+  panNo: string;
+  iecNo: string;
+  epcgLicNo: {
+    lic1: string;
+    lic2?: string;
+    lic3?: string;
+  };
+  epcgLicDate: string;
+  epcgLicExpiryReminder: string;
+  customField1?: string;
   status: 'active' | 'inactive';
   createdAt: string;
 }
