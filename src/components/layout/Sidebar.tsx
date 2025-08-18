@@ -50,6 +50,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, activeView, onViewChan
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
     },
+    {
+      id: 'sales' as ActiveView,
+      label: 'Sales Transactions',
+      icon: TrendingUp,
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+    },
 
     {
       id: 'receipt' as ActiveView,
