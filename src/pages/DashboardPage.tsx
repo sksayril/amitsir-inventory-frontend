@@ -7,6 +7,7 @@ import { CompanyMaster } from '../components/masters/CompanyMaster';
 import { ItemMaster } from '../components/masters/ItemMaster';
 import { PurchaseMaster } from '../components/transactions/PurchaseMaster';
 import { ReceiptMaster } from '../components/transactions/ReceiptMaster';
+import { SalesMaster } from '../components/transactions/SalesMaster';
 import { CreditPartyMaster } from '../components/masters/CreditPartyMaster';
 import { DebitPartyMaster } from '../components/masters/DebitPartyMaster';
 import { BrokerMaster } from '../components/masters/BrokerMaster';
@@ -17,6 +18,7 @@ export type ActiveView =
   | 'company'
   | 'item'
   | 'purchase'
+  | 'sales'
   | 'receipt'
   | 'credit-party'
   | 'debit-party'
@@ -61,6 +63,8 @@ export const DashboardPage: React.FC = () => {
         return <ItemMaster />;
       case 'purchase':
         return <PurchaseMaster />;
+      case 'sales':
+        return <SalesMaster />;
 
       case 'receipt':
         return <ReceiptMaster />;
