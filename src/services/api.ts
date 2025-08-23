@@ -2,11 +2,7 @@ import axios from 'axios';
 import { authStorage } from '../utils/storage';
 
 // Base API configuration
-<<<<<<< HEAD
-const API_BASE_URL = 'https://7cvccltb-3100.inc1.devtunnels.ms';
-=======
 const API_BASE_URL = 'http://localhost:3100';
->>>>>>> 238ffd4284f0decdc9ed8a8ab84137f632364ba2
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -101,6 +97,137 @@ export const companyAPI = {
 
   // Delete company
   deleteCompany: (id: string) => api.delete(`/companies/${id}`),
+};
+
+// Sales Transactions API endpoints
+export const salesAPI = {
+  // Get all sales transactions with pagination and filters
+  getSalesTransactions: (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    companyId?: string;
+    startDate?: string;
+    endDate?: string;
+    currency?: string;
+    status?: string;
+    isActive?: boolean;
+  }) => api.get('/sales-transactions', { params }),
+
+  // Get sales transaction by ID
+  getSalesTransactionById: (id: string) => api.get(`/sales-transactions/${id}`),
+
+  // Create new sales transaction
+  createSalesTransaction: (data: any) => api.post('/sales-transactions', data),
+
+  // Update sales transaction
+  updateSalesTransaction: (id: string, data: any) => api.put(`/sales-transactions/${id}`, data),
+
+  // Delete sales transaction
+  deleteSalesTransaction: (id: string) => api.delete(`/sales-transactions/${id}`),
+
+  // Search by invoice number
+  searchByInvoiceNumber: (invoiceNumber: string) => api.get(`/sales-transactions/search/invoice/${invoiceNumber}`),
+
+  // Search by transaction number
+  searchByTransactionNumber: (transactionNumber: string) => api.get(`/sales-transactions/search/transaction/${transactionNumber}`),
+
+  // Get transactions by company
+  getTransactionsByCompany: (companyId: string) => api.get(`/sales-transactions/company/${companyId}`),
+
+  // Get export summary
+  getExportSummary: (params: {
+    startDate?: string;
+    endDate?: string;
+    companyId?: string;
+  }) => api.get('/sales-transactions/export/summary', { params }),
+};
+
+// Invoices API endpoints
+export const invoicesAPI = {
+  // Get invoice by invoice number
+  getInvoiceByNumber: (invoiceNumber: string) => api.get(`/invoices/${invoiceNumber}`),
+
+  // Get invoice series for company
+  getInvoiceSeries: (companyId: string, params: { year?: number }) => api.get(`/invoices/company/${companyId}/series`, { params }),
+
+  // Get export statistics
+  getExportStatistics: (params: {
+    startDate?: string;
+    endDate?: string;
+    companyId?: string;
+  }) => api.get('/invoices/export/statistics', { params }),
+
+  // Advanced invoice search
+  advancedSearch: (params: {
+    search?: string;
+    companyId?: string;
+    startDate?: string;
+    endDate?: string;
+    currency?: string;
+    status?: string;
+    country?: string;
+    minAmount?: number;
+    maxAmount?: number;
+    exporter?: string;
+    consignee?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get('/invoices/search/advanced', { params }),
+
+  // Get invoice template
+  getInvoiceTemplate: (companyId: string) => api.get('/invoices/export/template', { params: { companyId } }),
+};
+
+// Master Data API endpoints
+export const masterDataAPI = {
+  // Companies
+  getCompanies: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) => api.get('/companies', { params }),
+
+  // Debit Parties
+  getDebitParties: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) => api.get('/debit-parties', { params }),
+
+  // Credit Parties
+  getCreditParties: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) => api.get('/master-data/credit-parties', { params }),
+
+  // Items
+  getItems: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) => api.get('/master-data/items', { params }),
+
+  // Brokers
+  getBrokers: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) => api.get('/master-data/brokers', { params }),
+
+  // CHAs
+  getChas: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+  }) => api.get('/master-data/chas', { params }),
 };
 
 export default api;
